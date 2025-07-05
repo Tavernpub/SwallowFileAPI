@@ -34,15 +34,13 @@
 
 1. **上传脚本到服务器**
    ```bash
-   # 将 FileAPI.sh 上传到 /opt 目录
-   cd /opt
-   chmod +x FileAPI.sh
+   # 下载FileAPI.sh文件，将文件上传至云服务器根目录的/opt/文件夹
+  
    ```
 
 2. **运行部署脚本**
    ```bash
-   sudo -i
-   cd /opt
+   # 在opt文件夹下的终端输入以下命令
    ./FileAPI.sh
    ```
 
@@ -55,21 +53,21 @@
    ./FileAPI.sh logs
    ```
 
-### 服务管理
+### 服务命令管理
 
 ```bash
 # 启动服务
 ./FileAPI.sh start
-
+  ```
 # 停止服务
 ./FileAPI.sh stop
-
+  ```
 # 重启服务
 ./FileAPI.sh restart
-
+  ```
 # 查看状态
 ./FileAPI.sh status
-
+  ```
 # 查看日志
 ./FileAPI.sh logs
 ```
@@ -78,7 +76,7 @@
 
 ### 基础信息
 
-- **服务地址**: `http://localhost:3000` (本地) / `https://file.swallowpro.top` (生产)
+- **服务地址**: `http://localhost:3000` 
 - **文件存储**: `/opt/uploads`
 - **最大文件大小**: 10MB
 - **支持格式**: JPEG, PNG, GIF
@@ -145,11 +143,15 @@ GET /files/{filename}
 ### 宝塔面板配置
 
 1. **添加站点**
-   - 域名: `file.swallowpro.top`
-   - 端口: 80/443
+   - 域名: `file.swallowpro.top`（填写你的文件服务器域名）
+   - php版本:纯静态
+     
 
 2. **配置反向代理**
-   在站点配置文件中添加:
+   点击域名进入站点修改
+   找到反向代理添加一个代理
+   目标url填写127.0.1:3030
+   在新添加的反向代理下点击配置文件，将下面内容填写进去
 
 ```nginx
 # 文件上传接口
@@ -268,21 +270,7 @@ fetch('https://file.swallowpro.top/upload', {
 });
 ```
 
-## 项目结构
 
-```
-SwallowPro/
-├── FileAPI/
-│   ├── FileAPI.sh          # 一键部署脚本
-│   └── server.js           # 服务器代码模板
-├── SwallowAPI/             # 后端 API 服务
-│   ├── handlers/
-│   │   └── wall.go         # 文件上传处理
-│   ├── main.go
-│   └── ...
-├── pages/                  # 前端页面
-├── static/                 # 静态资源
-└── README.md              # 项目文档
 ```
 
 ## 配置说明
@@ -346,20 +334,18 @@ const maxFileSize = 10 * 1024 * 1024; // 10MB
 
 ## 许可证
 
-MIT License
+Tavern版权所有
 
-## 贡献
 
-欢迎提交 Issue 和 Pull Request！
 
 ## 联系方式
 
 如有问题，请通过以下方式联系:
 
-- 提交 Issue
-- 发送邮件
-- 微信/QQ 群
+
+- 发送邮件至 tavernpub@yeah.net
+- QQ 2196008384
 
 ---
 
-**注意**: 本服务仅用于学习和开发目的，生产环境使用前请确保安全配置。 
+**注意**: 本服务仅用于学习和开发目的。 
