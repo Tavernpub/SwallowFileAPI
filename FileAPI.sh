@@ -162,20 +162,18 @@ const path = require('path');
 const { v4: uuidv4 } = require('uuid');
 const fs = require('fs');
 const morgan = require('morgan');
+const FileType = require('file-type');
 
 const app = express();
 const port = 3000;
 const uploadDir = '/opt/uploads';
 
-// 确保上传目录存在
 if (!fs.existsSync(uploadDir)) {
     fs.mkdirSync(uploadDir, { recursive: true });
 }
 
-// 请求日志中间件
 app.use(morgan('combined'));
 
-// 配置CORS
 app.use(cors({
     origin: '*',
     methods: ['GET', 'POST', 'OPTIONS'],
@@ -184,10 +182,8 @@ app.use(cors({
     maxAge: 86400
 }));
 
-// 处理预检请求
 app.options('*', cors());
 
-// 配置文件存储
 const storage = multer.diskStorage({
     destination: function (req, file, cb) {
         console.log('保存文件到目录:', uploadDir);
@@ -195,14 +191,12 @@ const storage = multer.diskStorage({
     },
     filename: function (req, file, cb) {
         console.log('原始文件名:', file.originalname);
-        // 如果请求中包含指定的文件名，则使用它
         const filename = file.originalname || (uuidv4() + path.extname(file.originalname));
         console.log('生成的文件名:', filename);
         cb(null, filename);
     }
 });
 
-// 配置multer，不做文件类型过滤
 const upload = multer({
     storage: storage,
     limits: {
@@ -210,18 +204,14 @@ const upload = multer({
     }
 }).single('file');
 
-// 健康检查接口
 app.get('/health', (req, res) => {
     res.json({ status: 'ok', timestamp: new Date().toISOString() });
 });
 
-// 文件上传接口
 app.post('/upload', async (req, res) => {
     console.log('收到上传请求');
     console.log('请求头:', req.headers);
-    
     try {
-        // 使用Promise包装multer中间件
         await new Promise((resolve, reject) => {
             upload(req, res, function(err) {
                 if (err) {
@@ -232,8 +222,6 @@ app.post('/upload', async (req, res) => {
                 }
             });
         });
-
-        // 检查是否有文件上传
         if (!req.file) {
             console.log('没有文件被上传');
             return res.status(400).json({
@@ -241,60 +229,29 @@ app.post('/upload', async (req, res) => {
                 message: '没有文件被上传'
             });
         }
-
         console.log('文件已保存到磁盘:', req.file.path);
         console.log('文件信息:', {
             originalname: req.file.originalname,
             mimetype: req.file.mimetype,
             size: req.file.size
         });
-
         try {
-            // 读取文件的前几个字节来检测文件类型
             const buffer = await fs.promises.readFile(req.file.path);
-            console.log('文件已读取，大小:', buffer.length, '字节');
-
-            // 检查文件头部
-            const header = buffer.slice(0, 4);
-            console.log('文件头部:', header);
-
-            // JPEG: FF D8 FF
-            // PNG: 89 50 4E 47
-            // GIF: 47 49 46 38
-            const isJPEG = header[0] === 0xFF && header[1] === 0xD8 && header[2] === 0xFF;
-            const isPNG = header[0] === 0x89 && header[1] === 0x50 && header[2] === 0x4E && header[3] === 0x47;
-            const isGIF = header[0] === 0x47 && header[1] === 0x49 && header[2] === 0x46 && header[3] === 0x38;
-
-            if (!isJPEG && !isPNG && !isGIF) {
-                console.log('文件头部检查失败:', {
-                    isJPEG,
-                    isPNG,
-                    isGIF,
-                    header: Array.from(header)
-                });
-                // 如果不是图片文件，删除已上传的文件
+            const type = await FileType.fromBuffer(buffer);
+            const allowedTypes = [
+                'image/jpeg', 'image/png', 'image/gif', 'image/bmp',
+                'image/webp', 'image/svg+xml', 'image/tiff', 'image/x-icon'
+            ];
+            if (!type || !allowedTypes.includes(type.mime)) {
                 await fs.promises.unlink(req.file.path);
                 return res.status(400).json({
                     code: 400,
-                    message: '只允许上传图片文件'
+                    message: '只允许上传图片文件(jpg, jpeg, png, gif, bmp, webp, svg, tiff, ico)'
                 });
             }
-
-            console.log('文件类型检查通过');
-
-            // 构建文件URL
             const protocol = req.headers['x-forwarded-proto'] || req.protocol;
             const host = req.headers['x-forwarded-host'] || req.get('host');
             const fileUrl = `${protocol}://${host}/files/${req.file.filename}`;
-
-            console.log('文件上传成功:', {
-                filename: req.file.filename,
-                url: fileUrl,
-                originalName: req.file.originalname,
-                size: req.file.size,
-                mimetype: req.file.mimetype
-            });
-
             res.json({
                 code: 200,
                 message: "上传成功",
@@ -305,7 +262,6 @@ app.post('/upload', async (req, res) => {
             });
         } catch (error) {
             console.error('文件处理错误:', error);
-            // 清理临时文件
             if (req.file && req.file.path) {
                 try {
                     await fs.promises.unlink(req.file.path);
@@ -339,22 +295,18 @@ app.post('/upload', async (req, res) => {
     }
 });
 
-// 文件访问接口
 app.get('/files/:filename', (req, res) => {
     const filename = req.params.filename;
     const filepath = path.join(uploadDir, filename);
-    
     if (!fs.existsSync(filepath)) {
         return res.status(404).json({
             code: 404,
             message: '文件不存在'
         });
     }
-    
     res.sendFile(filepath);
 });
 
-// 错误处理中间件
 app.use((err, req, res, next) => {
     console.error('全局错误处理:', err);
     res.status(400).json({
@@ -363,7 +315,6 @@ app.use((err, req, res, next) => {
     });
 });
 
-// 监听所有地址
 app.listen(port, '0.0.0.0', () => {
     console.log(`文件API服务器运行在 http://0.0.0.0:${port}`);
     console.log('上传目录:', uploadDir);
@@ -371,15 +322,6 @@ app.listen(port, '0.0.0.0', () => {
     console.log('- GET  /health - 健康检查');
     console.log('- POST /upload - 文件上传');
     console.log('- GET  /files/:filename - 文件访问');
-});
-
-// 优雅关闭
-process.on('SIGTERM', () => {
-    console.log('收到 SIGTERM 信号，准备关闭服务器...');
-    app.close(() => {
-        console.log('服务器已关闭');
-        process.exit(0);
-    });
 });
 EOL
 else
