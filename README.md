@@ -4,6 +4,18 @@
 
 ---
 
+## 业务范围与典型应用
+
+本服务专为 SwallowPro 社区系统设计，适用于以下场景：
+
+- **上墙内容图片**：支持用户在“上墙”功能中上传配图，提升内容丰富度。
+- **帖子/评论图片**：支持社区帖子、评论区的图片上传，增强互动体验。
+- **用户头像上传**：支持用户注册、资料页上传/更换头像。
+- **多端适配**：兼容 uni-app、H5、小程序、APP 等多端图片上传需求。
+- **图片托管与外链**：可作为独立图片托管服务，为主站、微服务、第三方应用提供图片外链。
+
+---
+
 ## 支持的图片格式
 
 - **JPEG** (`.jpg`, `.jpeg`)
@@ -40,9 +52,81 @@
 
 ---
 
+## server.js 二次开发与扩展教程
+
+server.js 是自动生成的 Node.js 文件上传服务主程序，支持自定义扩展。你可以：
+
+### 1. 增加自定义 API 路由
+
+例如，添加图片列表接口：
+```js
+app.get('/list', (req, res) => {
+  fs.readdir(uploadDir, (err, files) => {
+    if (err) return res.status(500).json({ code: 500, message: '读取失败' });
+    res.json({ code: 200, files });
+  });
+});
+```
+
+### 2. 增加鉴权/Token 校验
+
+可在上传接口前加简单鉴权：
+```js
+app.use((req, res, next) => {
+  if (req.path === '/upload') {
+    const token = req.headers['authorization'];
+    if (!token || token !== 'Bearer your_token') {
+      return res.status(401).json({ code: 401, message: '未授权' });
+    }
+  }
+  next();
+});
+```
+
+### 3. 限制上传类型/数量/频率
+
+可结合 express-rate-limit、multer 选项等实现。
+
+### 4. 支持更多业务字段
+
+如需上传时携带业务参数（如 userId、业务类型等），可在 formData 里传递并在 req.body 读取。
+
+---
+
+## 如何修改 FileAPI.sh 让 server.js 更灵活
+
+FileAPI.sh 脚本通过如下片段自动生成 server.js：
+```bash
+cat > server.js << 'EOL'
+# ...内容...
+EOL
+```
+你可以：
+- **直接编辑 FileAPI.sh**，在 EOL 之间插入自定义 Node.js 代码。
+- **增加自定义依赖**，如需用到 express-rate-limit、jsonwebtoken 等包，可在 package.json 依赖中添加，并在 server.js require。
+- **举例：**
+  - 增加图片压缩：引入 sharp 包，上传后自动压缩图片。
+  - 增加上传日志推送：上传成功后通过 webhook 通知主站。
+  - 增加自定义错误处理：统一返回格式。
+
+### 示例：添加上传后自动压缩
+```js
+const sharp = require('sharp');
+// ...上传成功后...
+await sharp(req.file.path).resize(800).toFile('/opt/uploads/compressed_' + req.file.filename);
+```
+
+### 示例：添加上传频率限制
+```js
+const rateLimit = require('express-rate-limit');
+app.use('/upload', rateLimit({ windowMs: 60*1000, max: 10 }));
+```
+
+---
+
 ## 典型应用场景
 
-- 社区/论坛/社交平台的图片内容上传
+- 社区/论坛/社交平台的图片内容上传（如上墙、帖子、评论、头像）
 - 微信小程序、H5、APP 的富媒体内容存储
 - 个人/团队项目的图片托管与外链
 - 作为主站/微服务的图片上传中转层
@@ -74,6 +158,15 @@
 - 欢迎提交 Issue、Pull Request，或自定义 server.js 以支持更多业务场景
 - 可根据实际需求扩展文件类型、鉴权、存储策略等
 - 如需定制开发或有疑问，欢迎联系作者
+
+---
+
+## server.js 开发与二次定制流程
+
+1. **定位 FileAPI.sh**，找到 `cat > server.js << 'EOL' ... EOL` 片段。
+2. **在 EOL 之间插入/修改 Node.js 代码**，如增加新接口、鉴权、图片处理等。
+3. **如需新依赖**，在 package.json 依赖中添加，并在 server.js require。
+4. **保存 FileAPI.sh，重新运行脚本**，即可自动生成并部署新 server.js。
 
 ---
 
