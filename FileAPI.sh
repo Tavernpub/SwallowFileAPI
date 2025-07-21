@@ -147,6 +147,8 @@ EOL
     # 安装依赖
     echo -e "${YELLOW}安装依赖...${NC}"
     npm install
+    # 强制安装 file-type@16 兼容 Node.js 12
+    npm install file-type@16
 else
     echo -e "${GREEN}package.json已存在且内容一致，跳过安装依赖${NC}"
 fi
@@ -344,8 +346,8 @@ ExecStart=${NODE_PATH} /opt/FileAPI/server.js
 Restart=always
 Environment=NODE_ENV=production
 Environment=PATH=/usr/local/node/bin:/usr/local/sbin:/usr/local/bin:/usr/sbin:/usr/bin:/sbin:/bin
-StandardOutput=append:/var/log/fileapi.log
-StandardError=append:/var/log/fileapi.error.log
+StandardOutput=file:/var/log/fileapi.log
+StandardError=file:/var/log/fileapi.error.log
 
 [Install]
 WantedBy=multi-user.target
